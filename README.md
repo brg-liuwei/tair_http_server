@@ -1,0 +1,3 @@
+tair的HTTP接口，使用golang实现，tair的golang客户端也可借鉴此代码
+
+tair自带的c api在ubuntu下面编译通不过，因此我另外写了一套c api，代码在目录c下面，使用时需要把c/libtair_clib.so加入到ldd路径之中。
