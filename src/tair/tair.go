@@ -19,7 +19,7 @@ import (
 	"unsafe"
 )
 
-var handlerDefaultSize int = 8
+var handlerDefaultSize int = 1024
 var handlerChan chan unsafe.Pointer
 
 var Configs map[string]string
