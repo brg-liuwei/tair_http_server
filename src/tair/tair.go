@@ -19,7 +19,7 @@ import (
 	"unsafe"
 )
 
-var handlerDefaultSize int = 1024
+var handlerDefaultSize int = 64
 var handlerChan chan unsafe.Pointer
 
 var Configs map[string]string
@@ -145,6 +145,41 @@ func decr(area int, key string, count int, expire int) (newCount int, err error)
 		newCount = int(cNewCount)
 	} else {
 		err = errors.New("decr tair key " + key + " err")
+	}
+	return
+}
+
+func mget(area int, keys []string) (m map[string]string, err error) {
+	ckeys := unsafe.Pointer(C.calloc(C.sizeof(unsafe.Pointer), len(keys)))
+	defer C.free(ckeys)
+	cklens := unsafe.Pointer(C.calloc(C.sizeof(C.size_t), len(keys)))
+	defer C.free(cklens)
+
+	for i := 0; i != len(keys); i++ {
+		entry := unsafe.Pointer(ckeys + i*C.sizeof(unsafe.Pointer))
+		*entry = C.CString(keys[i])
+		defer C.free(unsafe.Pointer(*entry))
+		lentry := *C.size_t(cklens + i*C.sizeof(C.size_t))
+		*lentry = len(keys[i])
+	}
+
+	handler := <-handlerChan
+	defer func(h unsafe.Pointer) { handlerChan <- h }(handler)
+
+	var cm *unsafe.Pointer
+	rc := C.tair_mget(handler, area, ckeys, cklens, C.size_t(len(keys)), &cm)
+	if rc != 0 && rc != -3983 {
+		/* TAIR_RETURN_PARTIAL_SUCCESS: -3983 */
+		err = errors.New("mget fail")
+		return
+	}
+
+	m = make(map[string]string)
+	for C.cmap_begin(cm); C.cmap_valid(cm); C.cmap_next(cm) {
+		var klen, vlen C.int
+		ckey := C.cmap_key(cm, &klen)
+		cval := C.cmap_val(cm, &vlen)
+		m[C.GoStringN(C.char(ckey), klen)] = C.GoStringN(C.char(cval), vlen)
 	}
 	return
 }
@@ -362,4 +397,7 @@ func Decr(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rep(w, strconv.Itoa(newCount))
+}
+
+func Mget(w http.ResponseWriter, r *http.Request) {
 }
