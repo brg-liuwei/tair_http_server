@@ -23,6 +23,7 @@ var handlerDefaultSize int = 64
 var handlerChan chan unsafe.Pointer
 
 var Configs map[string]string
+var Urls map[string]func(http.ResponseWriter, *http.Request)
 
 func tairLoadConf() {
 	if Configs == nil {
@@ -32,12 +33,17 @@ func tairLoadConf() {
 	Configs["slave"] = "zk2:5198"
 	Configs["group"] = "ldb_group"
 	Configs["port"] = "9999"
-	Configs["set"] = "/tair_set"
-	Configs["get"] = "/tair_get"
-	Configs["del"] = "/tair_del"
-	Configs["incr"] = "/tair_incr"
-	Configs["decr"] = "/tair_decr"
 	Configs["handlerSize"] = "32"
+
+	Urls["/tair_set"] = Set
+	Urls["/tair_prefix_set"] = PrefixSet
+	Urls["/tair_get"] = Get
+	Urls["/tair_prefix_get"] = PrefixGet
+	Urls["/tair_del"] = Del
+	Urls["/tair_prefix_remove"] = PrefixRemove
+	Urls["/tair_incr"] = Incr
+	Urls["/tair_decr"] = Decr
+	Urls["/tair_get_range"] = GetRange
 }
 
 func Init() error {

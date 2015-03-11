@@ -1,3 +1,5 @@
 tair的HTTP接口，使用golang实现，tair的golang客户端也可借鉴此代码
 
 tair自带的c api在ubuntu下面编译通不过，因此我另外写了一套c api，代码在目录c下面，使用时需要把c/libtair_clib.so加入到ldd路径之中。
+
+注意，tair里面有一个大坑，get_range接口只能查询到用prefix_put函数写入的数据，而用put写入的数据是查不到的。如果如果想使用批量查询的方式去读取数据，一定要用prefix_put写入才行。
