@@ -168,7 +168,7 @@ int cmap_valid(void *m)
 
 void cmap_next(void *m)
 {
-    return __cmap_next((cmap *)m);
+    __cmap_next((cmap *)m);
 }
 
 void cmap_cleanup(void *m)

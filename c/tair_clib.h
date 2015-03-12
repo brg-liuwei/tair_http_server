@@ -71,6 +71,7 @@ cmap *cmap_create(void *tair_map);
 int tair_mget(void *client, int area, const char **keys, int klens[], size_t nkeys , void **m);
 void cmap_begin(void *m);
 int cmap_valid(void *m);
+void cmap_next(void *m);
 void cmap_cleanup(void *m);
 const char *cmap_key(void *m, int *len);
 const char *cmap_val(void *m, int *len);
