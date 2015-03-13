@@ -12,6 +12,7 @@ import "C"
 
 import (
 	"errors"
+	"strings"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -167,31 +168,25 @@ func decr(area int, key string, count int, expire int) (newCount int, err error)
 }
 
 func mget(area int, keys []string) (m map[string]string, err error) {
-        var cptr *C.char
-	ckeys := C.calloc(C.size_t(unsafe.Sizeof(cptr)), C.size_t(len(keys)))
-	defer C.free(ckeys)
-        var csize_t C.size_t
-	cklens := C.calloc(C.size_t(unsafe.Sizeof(csize_t)), C.size_t(len(keys)))
-	defer C.free(cklens)
+	cvec := unsafe.Pointer((C.new_cvec()))
+	defer C.cvec_cleanup(cvec)
 
 	for i := 0; i != len(keys); i++ {
-		// TODO: create a c wrapper to handle **ptr
-
-		entry := ckeys + unsafe.Pointer(i*int(unsafe.Sizeof(cptr)))
-		*entry = C.CString(keys[i])
-		defer C.free(unsafe.Pointer(*entry))
-
-		lentry := *C.size_t(cklens + i*unsafe.Sizeof(csize_t))
-		*lentry = len(keys[i])
+		ck := C.CString(keys[i])
+		defer C.free(unsafe.Pointer(ck))
+		C.cvec_add(cvec, ck, C.size_t(len(keys[i])))
 	}
 
 	handler := <-handlerChan
 	defer func(h unsafe.Pointer) { handlerChan <- h }(handler)
 
 	var errmsg *C.char
-	var cm *C.void
+	var cm unsafe.Pointer
 
-	rc := C.tair_mget(handler, area, ckeys, cklens, C.size_t(len(keys)), &cm, &errmsg)
+	rc := C.tair_mget(handler, C.int(area), (*C.struct___cvec)(unsafe.Pointer(cvec)), 
+	                  (**C.struct___cmap)(unsafe.Pointer(&cm)), &errmsg)
+	defer C.cmap_cleanup(cm)
+
 	if rc != 0 && rc != -3983 {
 		/* TAIR_RETURN_PARTIAL_SUCCESS: -3983 */
 		err = errors.New("mget err: " + C.GoString(errmsg))
@@ -203,7 +198,7 @@ func mget(area int, keys []string) (m map[string]string, err error) {
 		var klen, vlen C.int
 		ckey := C.cmap_key(cm, &klen)
 		cval := C.cmap_val(cm, &vlen)
-		m[C.GoStringN(C.char(ckey), klen)] = C.GoStringN(C.char(cval), vlen)
+		m[C.GoStringN((*C.char)(ckey), klen)] = C.GoStringN((*C.char)(cval), vlen)
 	}
 	return
 }
@@ -415,11 +410,10 @@ func Mget(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	var keys []string
-	var vals string
 	var area int
 
-	keys = rw.GetAndPanic("keys").Split(",")
-	if area, err = rw.Get("area"); err != nil {
+	keys = strings.Split(rw.GetAndPanic("keys"), ",")
+	if area, err = strconv.Atoi(rw.Get("area")); err != nil {
 		panic("param area should be numeric string\n")
 	}
 

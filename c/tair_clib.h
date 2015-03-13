@@ -2,6 +2,8 @@
 #define __TAIR_CLIB_H__
 
 #include <sys/types.h>
+#include "tair_cvec.h"
+#include "tair_cmap.h"
 
 #if __cplusplus
 extern "C"
@@ -35,46 +37,7 @@ int tair_decr(void *client, int area,
         int count, int expire,
         int *ret, const char **errmsg);
 
-typedef struct __cmap {
-    char        *data;
-
-    int          cnt;
-    int          total;
-    int         *keys_len;
-    int         *vals_len;
-
-    int          valid_;
-    const char  *cur_key;
-    int          cur_key_len;
-    const char  *cur_val;
-    int          cur_val_len;
-
-    void        (*begin)(struct __cmap *__this);
-    int         (*valid)(struct __cmap *__this);
-    void        (*next)(struct __cmap *__this);
-    void        (*cleanup)(struct __cmap *__this);
-} cmap;
-
-/* cmap iterator usage:
-
- cmap *m = cmap_create(tair_map);
- assert(m != NULL);
- for (m->begin(m); m->valid(m); m->next(m)) {
-    do_some_stuff(m->cur_key, m->cur_key_len);
-    do_some_stuff(m->cur_val, m->cur_val_len);
- }
- m->cleanup(m);
-
-*/
-
-cmap *cmap_create(void *tair_map);
-int tair_mget(void *client, int area, const char **keys, int klens[], size_t nkeys , void **m);
-void cmap_begin(void *m);
-int cmap_valid(void *m);
-void cmap_next(void *m);
-void cmap_cleanup(void *m);
-const char *cmap_key(void *m, int *len);
-const char *cmap_val(void *m, int *len);
+int tair_mget(void *client, int area, cvec *v, cmap **m, const char **errmsg);
 
 /* ------ range operates ------ */
 int tair_prefix_put(void *client, int area,
@@ -92,20 +55,6 @@ int tair_prefix_remove(void *client, int area,
         const char *pkey, size_t pklen,
         const char *skey, size_t sklen,
         const char **errmsg);
-
-typedef struct __cvec {
-    size_t    idx;
-    size_t    size;
-    void     *values;
-
-    void    (*begin)(struct __cvec *__this);
-    int     (*valid)(struct __cvec *__this);
-    void    (*next)(struct __cvec *__this);
-    void    (*cleanup)(struct __cvec *__this);
-
-    const char   *(*cur_data)(struct __cvec *__this);
-    size_t        (*cur_size)(struct __cvec *__this);
-} cvec;
 
 /**
  * @brief
