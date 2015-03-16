@@ -13,14 +13,17 @@ import "C"
 import (
 	"errors"
 	"strconv"
+	"sync"
 	"unsafe"
 )
 
 var handlerDefaultSize int = 64
 var handlerChan chan unsafe.Pointer
 
+var once sync.Once
+
 func Init() error {
-	tairLoadConf()
+	once.Do(tairLoadConf)
 
 	cmaster := C.CString(Configs["master"])
 	defer C.free(unsafe.Pointer(cmaster))

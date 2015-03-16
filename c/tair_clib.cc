@@ -123,20 +123,22 @@ int tair_mget(void *client, int area, cvec *keys, cmap **m, const char **errmsg)
     n = ((tair::tair_client_api *)client)->mget(area, *(vector<tair::data_entry *> *)keys->values, kvmap);
     if (n != 0 && n != -3983) {
         if (errmsg != NULL) {
-	    *errmsg = ((tair::tair_client_api *)client)->get_error_msg(n);
+            *errmsg = ((tair::tair_client_api *)client)->get_error_msg(n);
         }
-	return n;
+        return n;
     }
 
     *m = cmap_create(&kvmap);
 
     for (tair::tair_keyvalue_map::iterator itr = kvmap.begin();
-            itr != kvmap.end(); ++itr)
+            itr != kvmap.end(); /* void */)
     {
-        delete itr->first;
-        delete itr->second;
+        tair::tair_keyvalue_map::iterator pre_itr = itr;
+        ++itr;
+        delete pre_itr->first;
+        delete pre_itr->second;
     }
-    kvmap.erase(kvmap.begin(), kvmap.end());
+    // kvmap.erase(kvmap.begin(), kvmap.end());
 
     return n;
 }

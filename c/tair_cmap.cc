@@ -85,11 +85,15 @@ cmap *cmap_create(void *tair_map)
 #define cpymem(dst, src, n) ((char *)memcpy(dst, src, n) + n)
 
     char *p = m->data;
+    int *klen = m->keys_len, *vlen = m->vals_len;
     for (tair::tair_keyvalue_map::iterator itr = tmap->begin();
             itr != tmap->end(); ++itr)
     {
         p = cpymem(p, itr->first->get_data(), itr->first->get_size());
+        *klen++ = itr->first->get_size();
+
         p = cpymem(p, itr->second->get_data(), itr->second->get_size());
+        *vlen++ = itr->second->get_size();
     }
 
     m->begin = __cmap_begin;

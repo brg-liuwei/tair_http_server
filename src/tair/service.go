@@ -14,7 +14,6 @@ func tairLoadConf() {
 	if Configs == nil {
 		Configs = make(map[string]string)
 	}
-
 	/* TODO: read conf from file */
 	Configs["master"] = "zk1:5198"
 	Configs["slave"] = "zk2:5198"
@@ -22,6 +21,9 @@ func tairLoadConf() {
 	Configs["port"] = "9999"
 	Configs["handlerSize"] = "32"
 
+	if Urls == nil {
+		Urls = make(map[string]func(http.ResponseWriter, *http.Request))
+	}
 	Urls["/tair_set"] = Set
 	Urls["/tair_get"] = Get
 	Urls["/tair_del"] = Del
@@ -166,6 +168,9 @@ func Mget(w http.ResponseWriter, r *http.Request) {
 	var area int
 
 	keys = strings.Split(rw.GetAndPanic("keys"), ",")
+	if len(keys) == 0 {
+		panic("need param keys separated by ','")
+	}
 	if area, err = strconv.Atoi(rw.Get("area")); err != nil {
 		panic("param area should be numeric string\n")
 	}
