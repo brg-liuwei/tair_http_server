@@ -176,3 +176,96 @@ func mget(area int, keys []string) (m map[string]string, err error) {
 	}
 	return
 }
+
+func prefix_put(area int, pkey string, skey string, val string, expire int) error {
+	cpkey := C.CString(pkey)
+	defer C.free(unsafe.Pointer(cpkey))
+	cskey := C.CString(skey)
+	defer C.free(unsafe.Pointer(cskey))
+	cval := C.CString(val)
+	defer C.free(unsafe.Pointer(cval))
+
+	handler := <-handlerChan
+	defer func(h unsafe.Pointer) { handlerChan <- h }(handler)
+
+	var errmsg *C.char
+
+	if 0 == C.tair_prefix_put(handler, C.int(area), cpkey, C.size_t(len(pkey)),
+		cskey, C.size_t(len(skey)), cval, C.size_t(len(val)), C.int(expire), &errmsg) {
+		return nil
+	} else {
+		return errors.New("prefix put tair pkey " + pkey +
+			", skey: " + skey + ", err: " + C.GoString(errmsg) + "\n")
+	}
+}
+
+func prefix_get(area int, pkey string, skey string) (string, error) {
+	cpkey := C.CString(pkey)
+	defer C.free(unsafe.Pointer(cpkey))
+	cskey := C.CString(skey)
+	defer C.free(unsafe.Pointer(cskey))
+
+	handler := <-handlerChan
+	defer func(h unsafe.Pointer) { handlerChan <- h }(handler)
+
+	var errmsg *C.char
+	var vlen C.size_t
+
+	cval := C.tair_prefix_get(handler, C.int(area), cpkey, C.size_t(len(pkey)),
+		cskey, C.size_t(len(skey)), &vlen, &errmsg)
+	defer C.free(unsafe.Pointer(cval))
+
+	if unsafe.Pointer(cval) == nil || vlen == C.size_t(0) {
+		return "", errors.New("prefix_get tair pkey:" + pkey + ", skey:" +
+			skey + ", err:" + C.GoString(errmsg) + "\n")
+	}
+	return C.GoStringN(cval, C.int(vlen)), nil
+}
+
+func prefix_remove(area int, pkey string, skey string) error {
+	cpkey := C.CString(pkey)
+	defer C.free(unsafe.Pointer(cpkey))
+	cskey := C.CString(skey)
+	defer C.free(unsafe.Pointer(cskey))
+
+	handler := <-handlerChan
+	defer func(h unsafe.Pointer) { handlerChan <- h }(handler)
+
+	var errmsg *C.char
+	if 0 == C.tair_prefix_remove(handler, C.int(area), cpkey, C.size_t(len(pkey)),
+		cskey, C.size_t(len(skey)), &errmsg) {
+		return nil
+	} else {
+		return errors.New("prefix_remove pkey: " + pkey + ", skey: " +
+			skey + ", err: " + C.GoString(errmsg) + "\n")
+	}
+}
+
+func get_range(area int, pkey, skey, ekey string, offset, limit int) ([]string, error) {
+	cpkey, cskey, cekey := C.CString(pkey), C.CString(skey), C.CString(ekey)
+	defer C.free(unsafe.Pointer(cpkey))
+	defer C.free(unsafe.Pointer(cskey))
+	defer C.free(unsafe.Pointer(cekey))
+
+	handler := <-handlerChan
+	defer func(h unsafe.Pointer) { handlerChan <- h }(handler)
+
+	var v *C.cvec
+	var errmsg *C.char
+
+	rc := C.tair_get_range(handler, C.int(area), cpkey, C.size_t(len(pkey)),
+		cskey, C.size_t(len(skey)), cekey, C.size_t(len(ekey)),
+		C.int(offset), C.int(limit), &v, &errmsg)
+	if rc == C.int(0) || rc == 150 {
+		// 150: TAIR_HAS_MORE_DATA
+		slice := make([]string, 0)
+		vec := unsafe.Pointer(v)
+		defer C.cvec_cleanup(vec)
+		for C.cvec_begin(vec); C.cvec_valid(vec) == C.int(1); C.cvec_next(vec) {
+			slice = append(slice, C.GoStringN(C.cvec_cur_data(vec), C.int(C.cvec_cur_size(vec))))
+		}
+		return slice, nil
+	} else {
+		return nil, errors.New("get_range err: " + C.GoString(errmsg))
+	}
+}
